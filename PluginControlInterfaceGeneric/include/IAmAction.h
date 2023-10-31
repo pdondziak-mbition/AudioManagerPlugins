@@ -22,6 +22,7 @@
 
 #include <string>
 #include <ostream>
+#include <cstdint>
 #include "IAmEventObserver.h"
 #include "CAmEventSubject.h"
 

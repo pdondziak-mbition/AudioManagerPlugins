@@ -29,6 +29,8 @@ OPTION (WITH_COMMAND_INTERFACE_CAPI
         "build with commandinterface common-api plugin" OFF)
 OPTION (WITH_COMMAND_INTERFACE_DBUS
         "build with commandinterface dbus plugin" OFF)
+OPTION (WITH_COMMAND_INTERFACE_PIPEWIRE
+        "build with commandinterface pipewire plugin" OFF)
 OPTION (WITH_ROUTING_INTERFACE_ASYNC
         "build with routing interface async plugin" OFF)
 OPTION (WITH_ROUTING_INTERFACE_CAPI
@@ -61,6 +63,10 @@ ENDIF(WITH_COMMAND_INTERFACE_CAPI)
 IF (WITH_COMMAND_INTERFACE_DBUS)
     add_subdirectory(PluginCommandInterfaceDbus)
 ENDIF (WITH_COMMAND_INTERFACE_DBUS)
+
+IF (WITH_COMMAND_INTERFACE_PIPEWIRE)
+    add_subdirectory(PluginCommandInterfacePipewire)
+ENDIF (WITH_COMMAND_INTERFACE_PIPEWIRE)
 
 IF (WITH_ROUTING_INTERFACE_ASYNC)
     add_subdirectory(PluginRoutingInterfaceAsync)
