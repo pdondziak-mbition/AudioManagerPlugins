@@ -20,25 +20,12 @@ PROJECT(PluginCommandInterfacePipewire} VERSION 0.1.0)
 
 find_package(AudioManager REQUIRED > 7.8.0)
 find_package(AudioManagerUtilities REQUIRED > 7.8.0)
-pkg_check_modules (DBUS "dbus-1 >= 1.4" REQUIRED)    
-
-IF(NOT WITH_DBUS_WRAPPER)
-	message (FATAL_ERROR "For Dbus plugins you need to compile the AM WITH_DBUS_WRAPPER")
-ENDIF(NOT WITH_DBUS_WRAPPER)
-    
-
-SET(COMMAND_DBUS_INTROSPECTION_FOLDER ${AM_SHARE_FOLDER}/${LIB_INSTALL_SUFFIX})
-SET(COMMAND_DBUS_INTROSPECTION_FILE ${AM_SHARE_FOLDER}/${LIB_INSTALL_SUFFIX}/CommandInterface.xml)
-
-
-CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/cmake/config.cmake ${CMAKE_CURRENT_SOURCE_DIR}/include/configCommandDbus.h )
 
 LINK_DIRECTORIES(${LINK_DIRECTORIES} ${AudioManagerUtilities_LIB_DIRECTORIES})
 
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11 -Wno-variadic-macro")
 
 INCLUDE_DIRECTORIES(
-${DBUS_INCLUDE_DIRS}
 ${CMAKE_CURRENT_SOURCE_DIR}/include
 ${CMAKE_SOURCE_DIR} 
 ${CMAKE_CURRENT_BINARY_DIR}
@@ -52,30 +39,10 @@ file(GLOB PLUGINDBUS_SRCS_CXX "src/*.cpp")
 add_library(PluginCommandInterfacePipewire MODULE ${PLUGINDBUS_SRCS_CXX})
 
 TARGET_LINK_LIBRARIES(PluginCommandInterfacePipewire
-${AudioManagerUtilities_LIBRARIES}  
-${DBUS_LIBRARIES})
-
-IF(WITH_TESTS)
-add_subdirectory (test)
-ENDIF(WITH_TESTS)
-
+${AudioManagerUtilities_LIBRARIES})
 
 INSTALL(TARGETS PluginCommandInterfacePipewire 
     DESTINATION ${DEFAULT_PLUGIN_COMMAND_DIR}
     PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ
     COMPONENT plugin
 )
-
-INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/CommandInterface.xml 
-    DESTINATION ${AM_SHARE_FOLDER}/${LIB_INSTALL_SUFFIX}
-    COMPONENT plugin
-)
-
-IF(USE_BUILD_LIBS) 
-execute_process(
-    COMMAND mkdir -p "${EXECUTABLE_OUTPUT_PATH}"
-    COMMAND cp "${CMAKE_CURRENT_SOURCE_DIR}/${INCLUDE_FOLDER}/CommandInterface.xml" ${EXECUTABLE_OUTPUT_PATH}/CommandInterface.xml)
-ENDIF(USE_BUILD_LIBS) 
-
-
-
