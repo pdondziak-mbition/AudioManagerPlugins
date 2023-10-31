@@ -1,8 +1,9 @@
 #ifndef PIPEWIRECOMMANDSENDER_H_
 #define PIPEWIRECOMMANDSENDER_H_
 
+#include "CAmCommandReceiverPipewire.h"
+
 #include <map>
-#include "IAmCommandReceiverShadow.h"
 #include "IAmCommand.h"
 
 
@@ -48,9 +49,7 @@ public:
     void cbMainSourceNotificationConfigurationChanged(const am_sourceID_t sourceID, const am_NotificationConfiguration_s& mainNotificationConfiguration) ;
 
 private:
-    CAmDbusMessageHandler mCAmDbusMessageHandler; ///< ! instance of message handler
-    IAmCommandReceiverShadow mIAmCommandReceiverShadow; ///< ! instance of shadow
-    CAmDbusWrapper* mpCAmDbusWrapper; ///< ! pointer to dbus wrapper
+    CAmCommandReceiverPipewire commandReceiverPipewire;
     IAmCommandReceive* mpIAmCommandReceive; ///< ! pointer to commandReceive Interface
     bool mReady; ///< ! if false, calls shall be ignored.
 

@@ -21,6 +21,9 @@ PROJECT(PluginCommandInterfacePipewire} VERSION 0.1.0)
 find_package(AudioManager REQUIRED > 7.8.0)
 find_package(AudioManagerUtilities REQUIRED > 7.8.0)
 
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(PIPEWIRE REQUIRED libpipewire-0.3)
+
 LINK_DIRECTORIES(${LINK_DIRECTORIES} ${AudioManagerUtilities_LIB_DIRECTORIES})
 
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11 -Wno-variadic-macro")
@@ -31,6 +34,7 @@ ${CMAKE_SOURCE_DIR}
 ${CMAKE_CURRENT_BINARY_DIR}
 ${AudioManager_INCLUDE_DIRS}
 ${AudioManagerUtilities_INCLUDE_DIRS}
+${PIPEWIRE_INCLUDE_DIRS}
 )
 
 # all source files go here
@@ -39,7 +43,8 @@ file(GLOB PLUGINDBUS_SRCS_CXX "src/*.cpp")
 add_library(PluginCommandInterfacePipewire MODULE ${PLUGINDBUS_SRCS_CXX})
 
 TARGET_LINK_LIBRARIES(PluginCommandInterfacePipewire
-${AudioManagerUtilities_LIBRARIES})
+${AudioManagerUtilities_LIBRARIES}
+${PIPEWIRE_LIBRARIES})
 
 INSTALL(TARGETS PluginCommandInterfacePipewire 
     DESTINATION ${DEFAULT_PLUGIN_COMMAND_DIR}
