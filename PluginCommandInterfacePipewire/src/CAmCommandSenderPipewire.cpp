@@ -21,16 +21,8 @@ extern "C" IAmCommandSend* PluginCommandInterfacePipewireFactory()
     return (new CAmCommandSenderPipewire());
 }
 
-/**
- * destroy instance of commandSendInterface
- */
-extern "C" void destroyRoutingPluginInterfaceDbus(IAmCommandSend* commandSendInterface)
-{
-    delete commandSendInterface;
-}
-
 CAmCommandSenderPipewire::CAmCommandSenderPipewire() :
-        mpIAmCommandReceive(NULL), //
+        m_commandReceive(NULL), //
         mReady(false)
 {
     log(&commandPipewire, DLT_LOG_INFO, "PipewireCommandSender constructor called");
@@ -38,7 +30,7 @@ CAmCommandSenderPipewire::CAmCommandSenderPipewire() :
 
 CAmCommandSenderPipewire::~CAmCommandSenderPipewire()
 {
-    log(&commandPipewire, DLT_LOG_INFO, "PipewireCommandSender destructed");
+    log(&commandPipewire, DLT_LOG_INFO, "~PipewireCommandSender destructed");
     CAmDltWrapper::instance()->unregisterContext(commandPipewire);
 }
 
@@ -46,7 +38,7 @@ am_Error_e CAmCommandSenderPipewire::startupInterface(IAmCommandReceive* command
 {
     log(&commandPipewire, DLT_LOG_INFO, "startupInterface called");
 
-    mpIAmCommandReceive = commandreceiveinterface;
+    m_commandReceive = commandreceiveinterface;
     return (E_OK);
 }
 
@@ -55,14 +47,15 @@ void CAmCommandSenderPipewire::setCommandReady(const uint16_t handle)
     //todo:implement handle handling
     log(&commandPipewire, DLT_LOG_INFO, "cbCommunicationReady called");
     mReady = true;
-    mpIAmCommandReceive->confirmCommandReady(handle,E_OK);
+    m_commandReceive->confirmCommandReady(handle,E_OK);
 }
 
 void CAmCommandSenderPipewire::setCommandRundown(const uint16_t handle)
 {
     log(&commandPipewire, DLT_LOG_INFO, "cbCommunicationRundown called");
     mReady = false;
-    mpIAmCommandReceive->confirmCommandRundown(handle,E_OK);
+    m_commandReceiverPipewire.closeConnection();
+    m_commandReceive->confirmCommandRundown(handle,E_OK);
 }
 
 void CAmCommandSenderPipewire::cbNewMainConnection(const am_MainConnectionType_s& mainConnection)

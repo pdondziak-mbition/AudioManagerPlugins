@@ -49,8 +49,8 @@ public:
     void cbMainSourceNotificationConfigurationChanged(const am_sourceID_t sourceID, const am_NotificationConfiguration_s& mainNotificationConfiguration) ;
 
 private:
-    CAmCommandReceiverPipewire commandReceiverPipewire;
-    IAmCommandReceive* mpIAmCommandReceive; ///< ! pointer to commandReceive Interface
+    CAmCommandReceiverPipewire m_commandReceiverPipewire;
+    IAmCommandReceive* m_commandReceive; ///< ! pointer to commandReceive Interface
     bool mReady; ///< ! if false, calls shall be ignored.
 
     /**

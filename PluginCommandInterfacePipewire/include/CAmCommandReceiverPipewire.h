@@ -1,8 +1,8 @@
 #ifndef PIPEWIRECOMMANDRECEIVER_H_
 #define PIPEWIRECOMMANDRECEIVER_H_
 
-#include <thread>
 #include <pipewire/pipewire.h>
+#include <thread>
 
 namespace am
 {
@@ -11,10 +11,11 @@ class CAmCommandReceiverPipewire
 {
 public:
     CAmCommandReceiverPipewire();
-
-    ~CAmCommandReceiverPipewire();
+    
+    void closeConnection();
 
 private:
+    pw_main_loop * m_pwMainLoop;
     std::thread m_pipewireThread;
 };
 
