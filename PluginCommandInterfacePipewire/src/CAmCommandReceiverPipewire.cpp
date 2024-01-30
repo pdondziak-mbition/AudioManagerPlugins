@@ -8,6 +8,11 @@
 
 #include <spa/utils/names.h>
 #include <spa/monitor/device.h>
+#include <spa/pod/builder.h>
+#include <spa/param/audio/type-info.h>
+#include <spa/param/audio/format-utils.h>
+#include <spa/param/props.h>
+#include <spa/debug/pod.h>
 
 #include <pipewire/pipewire.h>
 
@@ -48,11 +53,18 @@ struct alsa_data {
 	// unsigned int reserve:1;
 };
 
+int g_last_seq = 0;
+pw_context *context;
+pw_core * core;
+pw_registry * registry;
+
 void on_core_done(void *data, uint32_t id, int seq)
 {
     struct roundtrip_data *d = reinterpret_cast<roundtrip_data *>(data);
 
     log(&commandPipewire, DLT_LOG_INFO, "Core done with processing");
+
+    g_last_seq = seq;
 }
 
 void registry_event_global(void *data, uint32_t id,
@@ -60,6 +72,77 @@ void registry_event_global(void *data, uint32_t id,
     const struct spa_dict *props)
 {
     log(&commandPipewire, DLT_LOG_INFO, "object: id:", id, "type:", type, "/", version);
+
+    const spa_dict_item *item;
+    spa_dict_for_each(item, props) {
+		log(&commandPipewire, DLT_LOG_INFO, item->key, "=",  item->value);
+        if (std::string(item->key) == "media.role" && std::string(item->value) == "Music")
+        {
+            log(&commandPipewire, DLT_LOG_INFO, "Found Playback Node");
+
+            char buf[1024];
+	        struct spa_pod_builder b = SPA_POD_BUILDER_INIT(buf, sizeof(buf));
+	        struct spa_pod_frame f;
+	        struct spa_pod *param;
+
+            spa_pod_builder_push_object(&b, &f,
+			    SPA_TYPE_OBJECT_Props, SPA_PARAM_Props);
+
+            spa_pod_builder_prop(&b, SPA_PROP_volume, 0);
+			spa_pod_builder_float(&b, (float)1.0);
+
+            spa_pod_builder_prop(&b, SPA_PROP_mute, 0);
+			spa_pod_builder_bool(&b, false);
+
+            float vols[] = {1.0, 1.0};
+
+            spa_pod_builder_prop(&b, SPA_PROP_channelVolumes, 0);
+			spa_pod_builder_array(&b, sizeof(float), SPA_TYPE_Float, 2, vols);
+
+            uint32_t channel_map[] = {SPA_AUDIO_CHANNEL_UNKNOWN, SPA_AUDIO_CHANNEL_UNKNOWN};
+
+            spa_pod_builder_prop(&b, SPA_PROP_channelMap, 0);
+			spa_pod_builder_array(&b, sizeof(uint32_t), SPA_TYPE_Id,
+					2, channel_map);
+
+            param = reinterpret_cast<spa_pod *>(spa_pod_builder_pop(&b, &f));
+
+            pw_node* playback_node = reinterpret_cast<pw_node *>(pw_registry_bind(registry, id, type, version, 0));
+
+            pw_node_set_param(playback_node, SPA_PARAM_Props, 0, param);
+
+            log(&commandPipewire, DLT_LOG_INFO, "Set Node Param");
+
+            spa_debug_pod(2, NULL, param);
+
+            char buf2[1024];
+	        struct spa_pod_builder b2 = SPA_POD_BUILDER_INIT(buf2, sizeof(buf2));
+            struct spa_pod *param2;
+
+            spa_audio_info_raw format_info;
+
+            format_info.format = SPA_AUDIO_FORMAT_S16_LE;
+            format_info.rate = 48000;
+            format_info.channels = 2;
+            format_info.position[0] = SPA_AUDIO_CHANNEL_FL;
+            format_info.position[1] = SPA_AUDIO_CHANNEL_FR;
+
+
+            param2 = spa_format_audio_raw_build(&b2, SPA_PARAM_Format, &format_info);
+            param2 = reinterpret_cast<spa_pod *>(spa_pod_builder_add_object(&b2,
+                SPA_TYPE_OBJECT_ParamPortConfig, SPA_PARAM_PortConfig,
+                SPA_PARAM_PORT_CONFIG_direction, SPA_POD_Id(SPA_DIRECTION_OUTPUT),
+                SPA_PARAM_PORT_CONFIG_mode,	 SPA_POD_Id(SPA_PARAM_PORT_CONFIG_MODE_dsp),
+                SPA_PARAM_PORT_CONFIG_monitor,   SPA_POD_Bool(true),
+                SPA_PARAM_PORT_CONFIG_format,    SPA_POD_Pod(param2)));
+
+            spa_debug_pod(2, NULL, param2);
+
+            pw_node_set_param(playback_node, SPA_PARAM_PortConfig, 0, param2);
+
+            pw_core_sync(core, PW_ID_CORE, g_last_seq);
+        }
+    }
 }
 
 static void create_alsa_device(alsa_data * data)
@@ -71,6 +154,10 @@ static void create_alsa_device(alsa_data * data)
 
 	handle = pw_core_export(data->core, SPA_TYPE_INTERFACE_Device,
 			&data->props->dict, data->device, 0);
+
+    //pw_core_set_paused(data->core, true);
+
+    pw_core_sync(data->core, PW_ID_CORE, g_last_seq);
 
 	// device = (struct sm_device *) create_object(impl, NULL, handle, props, true);
 
@@ -99,6 +186,10 @@ static void alsa_udev_object_info(void *data, uint32_t id, const struct spa_devi
 
     alsa_d->device = reinterpret_cast<spa_device *>(iface);
     alsa_d->props = pw_properties_new_dict(info->props);
+
+    pw_properties_set(alsa_d->props, "api.alsa.use-acp", "true");
+    pw_properties_set(alsa_d->props, "api.acp.auto-profile", "false");
+    pw_properties_set(alsa_d->props, "api.acp.auto-port", "false");
 
     create_alsa_device(alsa_d);
 }
@@ -146,9 +237,9 @@ void pwMainThread(pw_main_loop ** pwMainLoop)
 
     *pwMainLoop = pw_main_loop_new(NULL);
 
-    pw_context *context = pw_context_new(pw_main_loop_get_loop(*pwMainLoop), pw_config_properties, 0);
+    context = pw_context_new(pw_main_loop_get_loop(*pwMainLoop), pw_config_properties, 0);
 
-    pw_core * core = pw_context_connect(context, nullptr, 0);
+    core = pw_context_connect(context, nullptr, 0);
 
     if (core == nullptr)
     {
@@ -158,7 +249,7 @@ void pwMainThread(pw_main_loop ** pwMainLoop)
 
     spa_hook registry_listener;
 
-    pw_registry * registry = pw_core_get_registry(core, PW_VERSION_REGISTRY, 0);
+    registry = pw_core_get_registry(core, PW_VERSION_REGISTRY, 0);
 
     spa_zero(registry_listener);
 
@@ -191,7 +282,7 @@ void pwMainThread(pw_main_loop ** pwMainLoop)
     struct roundtrip_data d;
     spa_hook core_listener;
     pw_core_add_listener(core, &core_listener, &core_events, &d);
-    d.pending = pw_core_sync(core, PW_ID_CORE, 0);
+    d.pending = pw_core_sync(core, PW_ID_CORE, g_last_seq);
 
     log(&commandPipewire, DLT_LOG_INFO, "entering loop");
     pw_main_loop_run(*pwMainLoop);
